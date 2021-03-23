@@ -1,0 +1,193 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+}
+
+img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+canvas {
+  display: block;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+#app {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.container {
+  display: flex;
+
+  &::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  .aside {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 240px;
+    border: 20px solid transparent;
+    border-image-source: url(../img/border.png);
+    border-image-slice: 20;
+    border-image-width: 20px;
+    border-image-outset: 0;
+    border-image-repeat: repeat;
+    border-radius: 10px;
+    background: url(../img/side/side-bg.jpg) no-repeat;
+    background-size: cover;
+
+    .header {
+      width: 100%;
+
+      .title {
+        height: 180px;
+        text-indent: -1000px;
+        background: url(../img/side/name.png) no-repeat center center;
+      }
+    }
+
+    .section {
+      position: relative;
+      width: 80%;
+      margin-top: 30px;
+      padding: 30px 0 15px 0;
+      border: 2px solid transparent;
+      border-image-source: url(../img/checkbox.png);
+      border-image-slice: 2;
+      border-image-width: 2px;
+      border-image-outset: 0;
+      border-image-repeat: no-repeat;
+
+      .section-header {
+        display: inline-block;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        padding: 0 20px;
+        // background-image: linear-gradient(45deg, purple, #0098ff);
+        // -webkit-background-clip: text;
+        // -webkit-text-fill-color: transparent;
+        border-radius: 16px;
+        line-height: 32px;
+        color: #fff;
+        background-image: linear-gradient(to top, rgb(252, 8, 142), #0098ff);
+        transform: translate(-50%, -50%);
+
+        .title {
+          text-align: center;
+          font-size: 18px;
+          word-break: keep-all;
+        }
+      }
+    }
+    
+    .level-wrapper {
+      .level {
+        width: 150px;
+        height: 40px;
+        margin: 0 auto;
+        background-size: 100% 100%;
+        background-position: center center;
+        text-indent: -1000px;
+        cursor: pointer;
+
+        &:not(:first-child) {
+          margin-top: 20px;
+        }
+
+        &.level-primary {
+          background-image: url(../img/side/btn_primary.png);
+        }
+
+        &.level-middle {
+          background-image: url(../img/side/btn_middle.png);
+        }
+
+        &.level-high {
+          background-image: url(../img/side/btn_high.png);
+        }
+      }
+    }
+
+    .prop-wrapper {
+      .props {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        
+        .prop {
+          width: 30px;
+          height: 30px;
+          text-indent: -1000px;
+          background-position: center;
+          background-size: 70%;
+          background-repeat: no-repeat;
+          border: 1px solid rgba(255, 255, 255, .3);
+          border-radius: 50%;
+          box-shadow: 0 0 6px #222;
+          // transition: background-size .3s;
+          cursor: pointer;
+
+          &:hover {
+            background-size: 80%;
+          }
+
+          &.prop-tip {
+            background-image: url(../img/prop/tip.png);
+          }
+
+          &.prop-reset {
+            background-image: url(../img/prop/reset.png);
+          }
+
+          &.prop-bomb {
+            background-image: url(../img/prop/bomb.png);
+          }
+        }
+      }
+    }
+  }
+
+  .main {
+    // float: right;
+    min-width: 480px;
+    min-height: 600px;
+    border: 20px solid transparent;
+    border-image-source: url(../img/border.png);
+    border-image-slice: 20;
+    border-image-width: 20px;
+    border-image-outset: 0;
+    border-image-repeat: repeat;
+    border-radius: 10px;
+    background: url(../img/table-1.jpg);
+  }
+}

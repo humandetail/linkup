@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>麻将连连看</title>
+</head>
+<body>
+  <div id="app">
+    <div class="container">
+      <aside class="aside">
+        <header class="header">
+          <h1 class="title">
+            麻将连连看
+          </h1>
+        </header>
+        <section class="section level-wrapper">
+          <header class="section-header">
+            <h2 class="title">游戏难度</h2>
+          </header>
+          <ul class="levels" id="js_levels">
+            <li class="level level-primary" data-level="PRIMARY">普通难度</li>
+            <li class="level level-middle" data-level="MIDDLE">中等难度</li>
+            <li class="level level-high" data-level="HIGH">高级难度</li>
+          </ul>
+        </section>
+        <section class="section prop-wrapper">
+          <header class="section-header">
+            <h2 class="title">道具</h2>
+          </header>
+          <ul class="props" id="js_props">
+            <li class="prop prop-tip" title="提示" data-prop="tip">提示</li>
+            <li class="prop prop-reset" title="重排" data-prop="reset">重排</li>
+            <li class="prop prop-bomb" title="强行消除" data-prop="bomb">强行消除</li>
+          </ul>
+        </section>
+      </aside>
+      <main class="main">
+        <canvas class="game-wrapper" id="js_game-wrapper"></canvas>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
