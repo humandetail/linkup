@@ -4,20 +4,15 @@
  * @Author: humandetail
  * @Date: 2021-03-18 21:14:16
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-23 19:39:29
+ * @LastEditTime: 2021-03-25 23:30:31
  */
 
 import {
-  ITopicsWrapper,
-  PublishSubscribers,
   ILevelItem,
   ILinkUpItem,
-  IMahjongItem,
   IPoint
 } from '../../types';
-import TopicTypes from '../config/topicTypes';
 
-import topicTypes from '../config/topicTypes';
 import { linkDetection } from './pathFinding';
 
 import {
@@ -25,11 +20,8 @@ import {
   getCurrentLevelMahjong
 } from './utils';
 
-export default class Linkup implements PublishSubscribers {
+export default class Linkup {
   private static Instance: Linkup = new Linkup();
-
-  // 订阅集合
-  private topics: ITopicsWrapper = {};
 
   // 游戏级别
   protected level!: ILevelItem;
@@ -54,14 +46,15 @@ export default class Linkup implements PublishSubscribers {
   init (level: ILevelItem) {
     this.level = level;
     // 生成元素
-    this.initLinkUpItem();
+    return this.initLinkUpItem(level);
   }
 
   /**
    * 根据 level 信息生成元素
    */
-  initLinkUpItem (): void {
-    const { col, row } = this.level;
+  initLinkUpItem (level: ILevelItem): ILinkUpItem[][] {
+    // const { col, row } = this.level;
+    const { col, row } = level;
     // 获取当前等级所需的元素样式
     const mahjongs = getCurrentLevelMahjong(this.level);
 
@@ -81,13 +74,15 @@ export default class Linkup implements PublishSubscribers {
     // 复制元素进行全解测试
     const copyItems = deepClone(linkUpItems, []).flat() as ILinkUpItem[];
     if (!this.testCompleteSolution(copyItems)) {
-      return this.initLinkUpItem();
+      return this.initLinkUpItem(level);
     }
 
+    return linkUpItems;
+
     // 发布订阅话题 - 游戏开始
-    setTimeout(() => {
-      this.publish(topicTypes.START, linkUpItems);
-    }, 500)
+    // setTimeout(() => {
+    //   this.publish(topicTypes.START, linkUpItems);
+    // }, 500)
     // this.publish(topicTypes.START, linkUpItems);
   }
 
@@ -192,27 +187,17 @@ export default class Linkup implements PublishSubscribers {
   /**
    * 移除元素
    */
-  removeItems (...points: IPoint[]) {
+  removeItems (...points: IPoint[]): {
+    linkUpItems: ILinkUpItem[][];
+    isFinished: boolean;
+  } {
     points.forEach(([x, y]) => {
       this.linkUpItems[y][x][2] = undefined;
     });
-  }
-
-  /**
-   * 使用道具
-   * @param { string } prop - 道具名称
-   */
-  useProp (prop: string) {
-    switch (prop) {
-      case 'tip':
-        break;
-      case 'reset':
-        break;
-      case 'bomb':
-        break;
-      default:
-        break;
-    }
+    return {
+      linkUpItems: this.linkUpItems,
+      isFinished: this.isFinished()
+    };
   }
 
   /**
@@ -230,18 +215,11 @@ export default class Linkup implements PublishSubscribers {
   }
 
   /**
-   * 订阅回调 - 选择元素
-   * @param point 
-   * @param isFirst 
+   * 选中的两个元素比较
+   * @param { IPoint } firstClickPos - 第一个元素的坐标点
+   * @param { IPoint } secondClickPos - 第二个元素的坐标点
    */
-  pickElement (point: IPoint, isFirst: boolean) {
-    this.publish(TopicTypes.ELEMENT_IS_EMPTY, this.isEmptyItem(point), point, isFirst);
-  }
-
-  /**
-   * 订阅回调 - 元素比较
-   */
-  onCompare (firstClickPos: IPoint, secondClickPos: IPoint): void {
+  onCompare (firstClickPos: IPoint, secondClickPos: IPoint): IPoint[] | undefined {
     const [Ax, Ay] = firstClickPos;
     const [Bx, By] = secondClickPos;
     const linkUpItems = this.linkUpItems;
@@ -253,80 +231,23 @@ export default class Linkup implements PublishSubscribers {
 
     // 1. 首先两种元素必须同款
     if (linkUpItems[Ay][Ax][2]!.name !== linkUpItems[By][Bx][2]!.name) {
-      // 非同款元素 连接失败
-      this.publish(TopicTypes.CONNECT_FAIL);
       return;
     }
 
     // 处理相邻情况
     if ((Ax === Bx && Math.abs(Ay - By) === 1) || (Ay === By && Math.abs(Ax - Bx) === 1)) {
       // 相邻点连接成功
-      this.publish(TopicTypes.CONNECT_SUCCESS, firstClickPos, secondClickPos);
-      return;
+      return [firstClickPos, secondClickPos];
     }
 
     // 其它情况连接
     const ret = linkDetection(firstClickPos, secondClickPos, this.level.row, this.level.col, this.isEmptyItem.bind(this));
 
     if (!!ret) {
-      // 连接成功
-      this.publish(TopicTypes.CONNECT_SUCCESS, ...ret as IPoint[]);
+      return ret as IPoint[];
     } else {
       // 连接失败
-      this.publish(TopicTypes.CONNECT_FAIL);
-    }
-  }
-
-  /**
-   * 订阅回调 - 连接动画结束
-   */
-  connectFinished (firstClickPos: IPoint, secondClickPos: IPoint) {
-    this.removeItems(firstClickPos, secondClickPos);
-    this.publish(TopicTypes.UPDATED_ELEMENT, this.linkUpItems);
-    // 检测游戏完成状态
-    const isFinished = this.isFinished();
-    if (isFinished) {
-      this.publish(TopicTypes.GAME_OVER);
-    }
-  }
-
-  /**
-   * 订阅
-   * @param topic 订阅主题
-   * @param cb 回调
-   */
-  subscribe (topic: TopicTypes, cb: Function) {
-    if (this.topics[topic]) {
-      this.topics[topic].push(cb);
-    } else {
-      this.topics[topic] = [cb];
-    }
-  }
-
-  /**
-   * 取消订阅
-   * @param topic - 订阅主题
-   * @param cb - 回调
-   */
-  unSubscribe (topic: TopicTypes, cb: Function) {
-    if (this.topics[topic]) {
-      // 移除相关的监听器
-      this.topics[topic] = this.topics[topic].filter((listener: Function) => {
-        return cb !== listener;
-      });
-    }
-  }
-
-  /**
-   * 发布
-   * @param topic - 订阅主题
-   * @param args - 参数集合
-   */
-  publish (topic: TopicTypes, ...args: any[]) {
-    if (this.topics[topic]) {
-      this.topics[topic].forEach((listener) => {
-        listener.call(this, ...args);
-      });
+      return;
     }
   }
 }

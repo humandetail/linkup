@@ -4,35 +4,17 @@
  * @Author: humandetail
  * @Date: 2021-03-18 23:46:55
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-22 23:47:00
+ * @LastEditTime: 2021-03-25 23:37:13
  */
 
-import { ILevelItem, ILinkUpItem, IMahjongItem, IPoint, ITopicsWrapper, PublishSubscribers } from '../../types';
-import TopicTypes from '../config/topicTypes';
-import { getElemDocPosition, getPagePos, getClickCoordinate, sleep } from './utils';
+import { ILevelItem, ILinkUpItem, IPoint } from '../../types';
+import { getElemDocPosition, getPagePos, getClickCoordinate } from './utils';
+import { singleSize } from '../config/mahjong';
 
-enum GameStatus {
-  // 加载状态
-  loading,
-  // 正常游戏状态
-  normal,
-  // 执行动画
-  animation,
-  // 结束状态
-  ended
-}
-
-export default class Painter implements PublishSubscribers {
-  public static clickEvent?: (event: MouseEvent) => void;
+export default class Painter {
   private static Instance: Painter = new Painter();
-  
-  // 订阅集合
-  private topics: ITopicsWrapper = {};
 
-  public mahjongPicSize: [number, number] = [60, 75];
-
-  // 游戏级别
-  protected level!: ILevelItem;
+  public mahjongPicSize: [number, number] = singleSize;
 
   protected loadingTimer?: NodeJS.Timeout;
 
@@ -56,64 +38,34 @@ export default class Painter implements PublishSubscribers {
   // canvas在页面中的位置
   public canvasDocPos!: { left: number; top: number; };
 
-  // 游戏状态
-  protected gameStatus: GameStatus = GameStatus.loading;
   // 第一次点击的元素位置
   protected firstClickPos?: IPoint;
   // 第二次点击的元素
   protected secondClickPos?: IPoint;
 
-  // 游戏开始时间
-  protected startTime!: Date;
-
-  private constructor () {
-  }
+  private constructor () {}
 
   public static getInstance (): Painter {
     return this.Instance;
   }
 
-  async init (level: ILevelItem, el: HTMLCanvasElement) {
-    this.level = level;
+  async init (el: HTMLCanvasElement) {
     this.canvas = el;
-
     this.ctx = this.canvas.getContext('2d')!;
-
-    this.gameStatus = GameStatus.loading;
-
-    const [width, height] = this.mahjongPicSize;
-    const { col, row } = this.level;
-    // 设置 canvas 容器的宽高
-    this.canvas.width = col * width;
-    this.canvas.height = row * height;
-    // 初始化加载动画
-    this.initLoadingAnimation();
-    // 获取画板在页面中的位置
-    this.getCanvasDocPos();
     // 加载素材
     await this.initMaterial();
-
-    // 事件监听
-    if (Painter.clickEvent) {
-      this.canvas.removeEventListener('click', Painter.clickEvent, false);
-    }
-    Painter.clickEvent = this.handleClick.bind(this);
-    this.canvas.addEventListener('click', Painter.clickEvent, false);
   }
 
   /**
    * 初始化加载动画
    */
-  initLoadingAnimation () {
+  initLoadingAnimation (fillStyle: string = '#fff', font: string = '40px sans-serif') {
     const ctx = this.ctx;
+    // 先清理之前可能会存在的动画
+    this.clearLoadingAnimation();
 
-    if (this.loadingTimer) {
-      clearInterval(this.loadingTimer);
-      this.loadingTimer = undefined;
-    }
-
-    ctx.fillStyle = '#fff';
-    ctx.font = '40px sans-serif';
+    ctx.fillStyle = fillStyle;
+    ctx.font = font;
 
     let n = 0;
 
@@ -124,13 +76,26 @@ export default class Painter implements PublishSubscribers {
     }, 200);
   }
 
+  // 清理 loading 动画
+  clearLoadingAnimation () {
+    if (this.loadingTimer) {
+      clearInterval(this.loadingTimer);
+      this.loadingTimer = undefined;
+    }
+  }
+
   /**
-   * 设置游戏状态为正常游戏
+   * 切换游戏等级
+   * @param level 
    */
-  setGameStatusNormal () {
-    this.firstClickPos = undefined;
-    this.secondClickPos = undefined;
-    this.gameStatus = GameStatus.normal;
+  changeLevel (level: ILevelItem) {
+    const [width, height] = this.mahjongPicSize;
+    const { col, row } = level;
+    // 设置 canvas 容器的宽高
+    this.canvas.width = col * width;
+    this.canvas.height = row * height;
+    // 获取画板在页面中的位置
+    this.getCanvasDocPos();
   }
 
   /**
@@ -263,6 +228,12 @@ export default class Painter implements PublishSubscribers {
     });
   }
 
+  /**
+   * 绘制连接线
+   * @param pointA - A 点
+   * @param pointB - B 点
+   * @returns 
+   */
   drawLine (pointA: IPoint, pointB: IPoint): Promise<void> {
     return new Promise((resolve, reject) => {
       let [x1, y1] = pointA,
@@ -324,17 +295,17 @@ export default class Painter implements PublishSubscribers {
     for (let i = 1; i < len; i++) {
       await this.drawLine(points[i - 1], points[i]);
     }
+    // 动画完毕后清空点击数据
+    this.firstClickPos = undefined;
+    this.secondClickPos = undefined;
   }
 
   /**
    * 绘制游戏完成提示
+   * @param { string } duration - 游戏耗时
    */
-  drawGameOverAnimation () {
+  drawGameOverAnimation (duration: string) {
     this.clear();
-
-    const seconds = Math.ceil((new Date().getTime() - this.startTime.getTime()) / 1000);
-    const mm = Math.floor(seconds / 60);
-    const ss = seconds % 60;
 
     const ctx = this.ctx;
 
@@ -342,7 +313,17 @@ export default class Painter implements PublishSubscribers {
     ctx.font = '20px sans-serif';
 
     ctx.fillText('恭喜，全部解开了。', 10, 50);
-    ctx.fillText(`游戏用时：【${mm}分${ss}秒】`, 10, 80);
+    ctx.fillText(`游戏用时：【${duration}】`, 10, 80);
+  }
+
+  /**
+   * 连接失败处理
+   */
+  async handleConnectFail () {
+    await this.drawErrorCheckbox();
+    this.firstClickPos = undefined;
+    this.secondClickPos = undefined;
+    this.drawCheckbox();
   }
 
   /**
@@ -385,80 +366,46 @@ export default class Painter implements PublishSubscribers {
   }
 
   /**
-   * 画板点击事件
+   * 画板点击事件处理
    */
-  handleClick (event: MouseEvent) {
-    if (this.gameStatus !== GameStatus.normal) {
-      // 非正常游戏状态，不处理点击事件
-      return;
-    }
+  handleClick (event: MouseEvent): IPoint {
     const canvasDocPos = this.canvasDocPos;
-    const firstClickPos = this.firstClickPos;
-    const secondClickPos = this.secondClickPos;
 
     // 获取当前点击的位置
     const currentClick = getPagePos(event);
 
     // 获取计算出来的坐标点
-    const coordinate = getClickCoordinate(canvasDocPos, currentClick, this.mahjongPicSize);
+    return getClickCoordinate(canvasDocPos, currentClick, this.mahjongPicSize);
+  }
 
-    if (!firstClickPos) {
-      // 第一次选中的元素
-      this.publish(TopicTypes.PICK_ELEMENT, coordinate, true);
-    } else if (!secondClickPos) {
-      // 当前点击位置 和 第一次选中的元素相同
-      // 清除第一次选中
-      if (coordinate[0] === firstClickPos[0] && coordinate[1] === firstClickPos[1]) {
+  /**
+   * 设置点击位置信息
+   */
+  setClickPos (pos: IPoint): IPoint[] {
+    if (!this.firstClickPos) {
+      this.firstClickPos = pos;
+      this.drawCheckbox();
+      return [pos];
+    }
+
+    if (!this.secondClickPos) {
+      if (pos[0] === this.firstClickPos[0] && pos[1] === this.firstClickPos[1]) {
         this.firstClickPos = undefined;
-        this.restoreSnapshot();
+        this.drawCheckbox();
+        return [];
       } else {
         // 第二次选中的元素
-        this.publish(TopicTypes.PICK_ELEMENT, coordinate, false);
-      }
-    }
-  }
-
-  /**
-   * 订阅回调 - 元素准备完毕，可以开启游戏
-   */
-  start (linkUpItems: ILinkUpItem[][]) {
-    if (this.loadingTimer) {
-      clearInterval(this.loadingTimer);
-      this.loadingTimer = undefined;
-    }
-    this.setGameStatusNormal();
-    this.updateElement(linkUpItems);
-    this.startTime = new Date(); // 记录开始时间
-  }
-
-  /**
-   * 订阅回调 - 确认选中的元素是否为空元素
-   */
-  isEmptyElement (isEmpty: boolean, point: IPoint, isFirst: boolean) {
-    if (isFirst) {
-      this.firstClickPos = isEmpty
-        ? undefined
-        : point;
-
-      this.drawCheckbox();
-    } else {
-      if (isEmpty) {
-        this.setGameStatusNormal(); // 重置所有选中框
-        this.restoreSnapshot();
-      } else {
-        this.secondClickPos = point;
+        this.secondClickPos = pos;
         this.drawCheckbox();
-
-        // 选中了两个元素，进行比较
-        this.gameStatus = GameStatus.animation;
-        // 发布订阅话题 - 元素比较
-        this.publish(TopicTypes.COMPARE_ELEMENT, this.firstClickPos, this.secondClickPos);
+        return [this.firstClickPos, this.secondClickPos];
       }
     }
+
+    return [];
   }
 
   /**
-   * 订阅回调 - 更新元素
+   * 更新元素
    * @param linkUpItems - 元素集合
    */
   updateElement (linkUpItems: ILinkUpItem[][]) {
@@ -467,7 +414,6 @@ export default class Painter implements PublishSubscribers {
 
     // 清空画板
     this.clear();
-    this.setGameStatusNormal();
 
     for (let i = 0; i < len; i++) {
       rowItem = linkUpItems[i];
@@ -477,83 +423,5 @@ export default class Painter implements PublishSubscribers {
     }
     // 保存快照
     this.saveSnapshot();
-  }
-
-  /**
-   * 订阅回调 - 元素连接失败
-   */
-  connectFail () {
-    this.drawErrorCheckbox()
-      .then(() => {
-        this.setGameStatusNormal();
-        this.restoreSnapshot();
-        // this.publish(TopicTypes.CONNECT_FINISHED);
-      })
-      .catch(() => {
-        throw new Error('程序错误');
-      });
-  }
-
-  /**
-   * 订阅回调 - 元素连接成功
-   */
-  async connectSuccess (...points: IPoint[]) {
-    this.gameStatus = GameStatus.animation;
-    await this.drawLineAnimation(...points)
-      .catch(() => {
-        throw new Error('程序错误');
-      });
-
-    this.gameStatus = GameStatus.normal;
-
-    this.publish(TopicTypes.CONNECT_FINISHED, this.firstClickPos, this.secondClickPos);
-  }
-
-  /**
-   * 订阅回调 - 游戏结束
-   */
-  gameOver () {
-    this.gameStatus = GameStatus.ended;
-    this.drawGameOverAnimation();
-  }
-
-  /**
-   * 订阅
-   * @param topic 订阅主题
-   * @param cb 回调
-   */
-  subscribe (topic: TopicTypes, cb: Function) {
-    if (this.topics[topic]) {
-      this.topics[topic].push(cb);
-    } else {
-      this.topics[topic] = [cb];
-    }
-  }
-
-  /**
-   * 取消订阅
-   * @param topic - 订阅主题
-   * @param cb - 回调
-   */
-  unSubscribe (topic: TopicTypes, cb: Function) {
-    if (this.topics[topic]) {
-      // 移除相关的监听器
-      this.topics[topic] = this.topics[topic].filter((listener: Function) => {
-        return cb !== listener;
-      });
-    }
-  }
-
-  /**
-   * 发布
-   * @param topic - 订阅主题
-   * @param args - 参数集合
-   */
-  publish (topic: TopicTypes, ...args: any[]) {
-    if (this.topics[topic]) {
-      this.topics[topic].forEach((listener) => {
-        listener.call(this, ...args);
-      });
-    }
   }
 }

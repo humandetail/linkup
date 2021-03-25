@@ -4,7 +4,7 @@
  * @Author: humandetail
  * @Date: 2021-03-19 22:45:02
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-19 22:51:30
+ * @LastEditTime: 2021-03-25 23:17:34
  */
 
 import { IMahjongItem } from '../../types';
@@ -12,7 +12,7 @@ import { IMahjongItem } from '../../types';
 // 底图素材
 export const mahjongPic = './assets/img/mahjong.png';
 // 单个元素尺寸
-export const singleSize = [60, 75]; 
+export const singleSize: [number, number] = [60, 75]; 
 // 元素集合
 export const mahjongs: IMahjongItem[] = [
   // 万

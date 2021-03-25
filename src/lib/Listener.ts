@@ -4,18 +4,10 @@
  * @Author: humandetail
  * @Date: 2021-03-23 22:27:34
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-23 22:54:43
+ * @LastEditTime: 2021-03-25 13:46:45
  */
 
-interface EventCallback  {
-  (...args: any[]): any;
-  listen?: () => any;
-}
-
-interface EventWrapper {
-  [key: string]: EventCallback[]
-}
-
+import { EventCallback, EventWrapper } from "../../types";
 
 export default class Listener {
 
@@ -73,7 +65,7 @@ export default class Listener {
   off (type: string, cb: EventCallback): Listener {
     if (this._events[type]) {
       // 移除相关的监听器
-      this._events[type] = this._events[type].filter((listener) => {
+      this._events[type] = this._events[type].filter((listener: EventCallback) => {
         return cb !== listener && cb !== listener.listen;
       });
     }
