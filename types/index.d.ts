@@ -4,7 +4,7 @@
  * @Author: humandetail
  * @Date: 2021-03-18 16:09:29
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-25 23:30:24
+ * @LastEditTime: 2021-03-26 13:19:36
  */
 
 // 等级
@@ -13,6 +13,13 @@ export interface ILevelItem {
   row: number;
   col: number;
 }
+
+// 道具
+export interface IPropAmount {
+  tip: number;
+  reset: number;
+  bomb: number;
+};
 
 // 麻将元素
 export interface IMahjongItem {

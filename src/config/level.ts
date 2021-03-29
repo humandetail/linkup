@@ -4,14 +4,14 @@
  * @Author: humandetail
  * @Date: 2021-03-18 23:56:46
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-19 18:38:43
+ * @LastEditTime: 2021-03-26 12:53:09
  */
 
 import { ILevelItem } from '../../types';
 
-export default <{
+const levels: {
   [key: string]: ILevelItem
-}>{
+} = {
   // 高级难度
   'HIGH': {
     name: '高级难度',
@@ -30,4 +30,6 @@ export default <{
     row: 8,
     col: 8
   }
-};
+}
+
+export default levels;

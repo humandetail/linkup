@@ -4,7 +4,7 @@
  * @Author: humandetail
  * @Date: 2021-03-25 13:49:09
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-25 23:46:23
+ * @LastEditTime: 2021-03-26 16:04:32
  */
 
 import Listener from './lib/Listener';
@@ -13,10 +13,10 @@ import Painter from './lib/Painter';
 
 import Levels from './config/level';
 
-import { ILevelItem, ILinkUpItem, IPoint } from '../types';
+import { ILevelItem, ILinkUpItem, IPoint, IPropAmount } from '../types';
 import { sleep } from './lib/utils';
 
-enum GameStatus {
+export enum GameStatus {
   // 加载状态
   loading,
   // 正常游戏状态
@@ -37,12 +37,20 @@ export default async () => {
   const oLevels = document.querySelector('#js-levels');
   const oProps = document.querySelector('#js-props');
   const oGameWrapper = document.querySelector('#js-game-wrapper') as HTMLCanvasElement;
+  const oPropsTemp = document.querySelector('#js-props-template')!.innerHTML;
 
   let level: ILevelItem;
+  let prop: IPropAmount = {
+    tip: 0,
+    reset: 0,
+    bomb: 0
+  };
+  let activeProp: string = '';
   let gameStatus: GameStatus = GameStatus.loading;
   let startTime: number; // 开始时间 毫秒时间戳
 
   await painter.init(oGameWrapper);
+  setProp(prop);
 
   function addEventListener () {
     if (!oLevels || !oProps || !oGameWrapper) {
@@ -50,8 +58,22 @@ export default async () => {
       return;
     }
     oLevels.addEventListener('click', levelEventHandler, false);
-    oProps.addEventListener('click', (e: Event) => {});
+    oProps.addEventListener('click', propEventHandler, false);
     oGameWrapper.addEventListener('click', elementPickHandler, false);
+  }
+
+  function setProp (amount: IPropAmount, activeProp: string = '') {
+    const reg = /\{\{(.*?)\}\}/g;
+    oProps!.innerHTML = oPropsTemp.replace(reg, (node, key) => {
+      return amount[key as keyof IPropAmount] + '';
+    });
+    document.querySelectorAll('.prop')?.forEach((el) => el.classList.remove('acitve'));
+    if (activeProp) {
+      const oActive = document.querySelector(`.prop-${activeProp}`);
+      if (oActive) {
+        oActive.classList.add('active')
+      }
+    }
   }
 
   // 等级按钮点击事件监听处理函数
@@ -68,6 +90,35 @@ export default async () => {
     }
   }
 
+  // 道具点击事件处理
+  function propEventHandler (e: Event) {
+    if (gameStatus !== GameStatus.normal) {
+      return;
+    }
+
+    let oLi: HTMLElement | null = e.target as HTMLElement;
+    while (oLi && !oLi.classList.contains('prop')) {
+      oLi = oLi.parentElement;
+    }
+    
+    if (oLi) {
+      if (oLi.classList.contains('active')) {
+        setProp(prop);
+      } else {
+        activeProp = oLi.dataset.prop || '';
+        if (activeProp === 'reset' && prop.reset > 0) {
+          setProp(prop, activeProp);
+          listener.emit('reset');
+        } else if (activeProp === 'tip' && prop.tip > 0) {
+          setProp(prop, activeProp);
+          listener.emit('tip');
+        } else if (activeProp === 'bomb' && prop.bomb > 0) {
+          setProp(prop, activeProp);
+        }
+      }
+    }
+  }
+
   // 游戏面板点击事件处理 - 处理元素选择
   function elementPickHandler (e: MouseEvent) {
     // 非正常游戏状态，不处理点击事件
@@ -77,6 +128,37 @@ export default async () => {
     const pos: IPoint = painter.handleClick(e);
 
     listener.emit('pick', pos);
+  }
+
+  function initProp (level: ILevelItem) {
+    let tip: number = 0;
+    let reset: number = 0;
+    let bomb: number = 0;
+    switch (level.name) {
+      case '普通难度':
+        tip = 3;
+        reset = 3;
+        bomb = 3;
+        break;
+      case '中等难度':
+        tip = 2;
+        reset = 2;
+        bomb = 2;
+        break;
+      case '高级难度':
+        tip = 1;
+        reset = 1;
+        bomb = 1;
+        break;
+      default:
+        break;
+    }
+
+    return {
+      tip,
+      reset,
+      bomb
+    };
   }
 
   // 添加事件监听
@@ -89,8 +171,11 @@ export default async () => {
   // 游戏等级监听
   listener.on('change-level', async (lv: ILevelItem) => {
     level = lv;
+    prop = initProp(level);
     gameStatus = GameStatus.loading;
     // await painter.init(level, oGameWrapper);
+    // 设置道具数量
+    setProp(prop);
     // 更新画板
     painter.changeLevel(level);
     // 开启加载动画
@@ -100,6 +185,35 @@ export default async () => {
     const linkUpItems = linkUp.init(level);
     await sleep(500);
     listener.emit('loaded', linkUpItems);
+  });
+
+  // 重排道具使用监听
+  listener.on('reset', () => {
+    // 对数据进行重排
+    const linkUpItems = linkUp.handleReset();
+    // 重绘
+    listener.emit('update', linkUpItems);
+    // 清除道具
+    prop.reset -= 1;
+    activeProp = '';
+    setProp(prop);
+  });
+
+  // 提示道具使用监听
+  listener.on('tip', async () => {
+    const result = linkUp.handleTip();
+    if (!result) {
+      // 无法找到连接点，游戏失败
+      gameStatus = GameStatus.ended;
+      alert('Game over!');
+      return;
+    }
+    gameStatus = GameStatus.loading;
+    await painter.drawTipAnimation(...result);
+    prop.tip -= 1;
+    setProp(prop);
+    activeProp = '';
+    gameStatus = GameStatus.normal;
   });
   
   // 游戏加载完成监听
@@ -135,15 +249,22 @@ export default async () => {
 
   // 元素连接
   listener.on('element-connect', async (points: [IPoint, IPoint]) => {
-    const result = linkUp.onCompare(...points);
-    gameStatus = GameStatus.animation;
-    if (!result) {
-      await painter.handleConnectFail();
-      gameStatus = GameStatus.normal;
-      return;
+    if (activeProp === 'bomb' && linkUp.isSameType(...points)) {
+      prop.bomb -= 1;
+      activeProp = '';
+      setProp(prop);
+      painter.clearClickPos();
+    } else {
+      const result = linkUp.onCompare(...points);
+      gameStatus = GameStatus.animation;
+      if (!result) {
+        await painter.handleConnectFail();
+        gameStatus = GameStatus.normal;
+        return;
+      }
+      
+      await painter.drawLineAnimation(...result);
     }
-    
-    await painter.drawLineAnimation(...result);
     const {
       linkUpItems,
       isFinished

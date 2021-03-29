@@ -145,6 +145,7 @@ body,
         align-items: center;
         
         .prop {
+          position: relative;
           width: 30px;
           height: 30px;
           text-indent: -1000px;
@@ -157,8 +158,28 @@ body,
           // transition: background-size .3s;
           cursor: pointer;
 
+          .amount {
+            position: absolute;
+            right: -8px;
+            top: -8px;
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            color: #fff;
+            font-size: 12px;
+            border-radius: 3px;
+            background: rgb(250, 116, 67);
+            text-indent: 0;
+          }
+
           &:hover {
             background-size: 80%;
+          }
+
+          &.active {
+            background-color: rgba($color: #f40, $alpha: .8);
+            box-shadow: 0 0 6px #fff;
           }
 
           &.prop-tip {

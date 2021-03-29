@@ -30,9 +30,9 @@
             <h2 class="title">道具</h2>
           </header>
           <ul class="props" id="js-props">
-            <li class="prop prop-tip" title="提示" data-prop="tip">提示</li>
-            <li class="prop prop-reset" title="重排" data-prop="reset">重排</li>
-            <li class="prop prop-bomb" title="强行消除" data-prop="bomb">强行消除</li>
+            <!-- <li class="prop prop-tip" title="提示" data-prop="tip">提示 <span class="amount">3</span></li>
+            <li class="prop prop-reset" title="重排" data-prop="reset">重排 <span class="amount">3</span></li>
+            <li class="prop prop-bomb" title="强行消除" data-prop="bomb">强行消除 <span class="amount">3</span></li> -->
           </ul>
         </section>
       </aside>
@@ -41,5 +41,11 @@
       </main>
     </div>
   </div>
+  <!-- template -->
+  <script type="text/plain" id="js-props-template">
+    <li class="prop prop-tip" title="提示" data-prop="tip">提示 <span class="amount">{{tip}}</span></li>
+    <li class="prop prop-reset" title="重排" data-prop="reset">重排 <span class="amount">{{reset}}</span></li>
+    <li class="prop prop-bomb" title="强行消除" data-prop="bomb">强行消除 <span class="amount">{{bomb}}</span></li>
+  </script>
 </body>
 </html>

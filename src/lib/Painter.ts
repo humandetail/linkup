@@ -4,7 +4,7 @@
  * @Author: humandetail
  * @Date: 2021-03-18 23:46:55
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-25 23:37:13
+ * @LastEditTime: 2021-03-26 15:57:47
  */
 
 import { ILevelItem, ILinkUpItem, IPoint } from '../../types';
@@ -296,8 +296,7 @@ export default class Painter {
       await this.drawLine(points[i - 1], points[i]);
     }
     // 动画完毕后清空点击数据
-    this.firstClickPos = undefined;
-    this.secondClickPos = undefined;
+    this.clearClickPos();
   }
 
   /**
@@ -321,9 +320,84 @@ export default class Painter {
    */
   async handleConnectFail () {
     await this.drawErrorCheckbox();
+    this.clearClickPos();
+    this.drawCheckbox();
+  }
+
+  /**
+   * 提示动画绘制
+   */
+  drawTipAnimation (pointA: IPoint, pointB: IPoint, linkUpItems: ILinkUpItem[][]): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.clearClickPos();
+      // 清空画板
+      this.clear();
+      
+      const ctx = this.ctx;
+      const len = linkUpItems.length;
+      let rowItem: ILinkUpItem[];
+  
+      let itemA: ILinkUpItem | undefined = undefined;
+      let itemB: ILinkUpItem | undefined = undefined;
+  
+      for (let y = 0; y < len; y++) {
+        rowItem = linkUpItems[y];
+        for(let x = 0; x < rowItem.length; x++) {
+          if (pointA[0] === x && pointA[1] === y) {
+            itemA = rowItem[x];
+            continue;
+          }
+          if (pointB[0] === x && pointB[1] === y) {
+            itemB = rowItem[x];
+            continue;
+          }
+          this.drawItem(rowItem[x]);
+        }
+      }
+  
+      if (!itemA || !itemB || !itemA[2] || !itemB[2]) {
+        // 找不到需要提示的元素，游戏出错
+        throw new Error('游戏出错');
+      }
+  
+      // 获取快照
+      const ImageData: ImageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+  
+      // 单独绘制两点提示点的动画
+      let timer: NodeJS.Timeout;
+      const [width, height] = this.mahjongPicSize;
+      const img = this.material;
+      let [Asx, Asy] = itemA[2].pos;
+      let [Bsx, Bsy] = itemB[2].pos;
+      Asx *= width;
+      Bsx *= width;
+      Asy *= height;
+      Bsy *= height;
+  
+      let n = 2;
+  
+      timer = setInterval(() => {
+        if (n <= 0) {
+          clearInterval(timer);
+          this.updateElement(linkUpItems);
+          resolve();
+        }
+  
+        if (n % 2 === 0) {
+          ctx.drawImage(img, Asx, Asy, width, height, pointA[0] * width, pointA[1] * height, width, height);
+          ctx.drawImage(img, Bsx, Bsy, width, height, pointB[0] * width, pointB[1] * height, width, height);
+        } else {
+          ctx.putImageData(ImageData, 0, 0);
+        }
+  
+        n --;
+      }, 250);
+    });
+  }
+
+  clearClickPos () {
     this.firstClickPos = undefined;
     this.secondClickPos = undefined;
-    this.drawCheckbox();
   }
 
   /**

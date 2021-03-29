@@ -4,12 +4,13 @@
  * @Author: humandetail
  * @Date: 2021-03-18 21:14:16
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-25 23:30:31
+ * @LastEditTime: 2021-03-26 15:55:39
  */
 
 import {
   ILevelItem,
   ILinkUpItem,
+  IMahjongItem,
   IPoint
 } from '../../types';
 
@@ -17,7 +18,8 @@ import { linkDetection } from './pathFinding';
 
 import {
   deepClone,
-  getCurrentLevelMahjong
+  getCurrentLevelMahjong,
+  shuffle
 } from './utils';
 
 export default class Linkup {
@@ -97,8 +99,6 @@ export default class Linkup {
       return false;
     }
 
-    // 复制一份数据用于测试
-    // 并且对数组进行降维
     const len = copyItems.length;
 
     let itemA!: ILinkUpItem;
@@ -198,6 +198,101 @@ export default class Linkup {
       linkUpItems: this.linkUpItems,
       isFinished: this.isFinished()
     };
+  }
+
+  // 元素重排
+  handleReset (): ILinkUpItem[][] {
+    const linkUpItems = this.linkUpItems;
+    const items = shuffle(linkUpItems.reduce((prev, item) => {
+      prev = [...prev, ...item.filter((sub) => {
+        return sub[2];
+      })]
+
+      return prev;
+    }, []).map((i) => i[2]));
+    
+    const row = linkUpItems.length;
+    let col: number;
+    for (let i = 0; i < row; i++) {
+      col = linkUpItems[i].length;
+      for (let j = 0; j < col; j++) {
+        if (linkUpItems[i][j][2]) {
+          linkUpItems[i][j][2] = items.pop()!;
+        }
+      }
+    }
+    return linkUpItems;
+  }
+
+  // 提示 - 找出其中两个可以消除的点
+  handleTip (): [IPoint, IPoint, ILinkUpItem[][]] | undefined {
+    // 复制元素并降维
+    const copyItems = deepClone(this.linkUpItems, []).flat() as ILinkUpItem[];
+    const len = copyItems.length;
+
+    let itemA!: ILinkUpItem;
+    let itemB!: ILinkUpItem;
+
+    function isEmpty (point: IPoint): boolean {
+      const item = copyItems.find((item) => {
+        return item[0] === point[0] && item[1] === point[1]
+      });
+
+      if (!item) {
+        return true;
+      }
+
+      return !item[2];
+    }
+
+    for (let i = 0; i < len; i++) {
+      itemA = copyItems[i];
+      // 跳过空元素
+      if (!itemA[2]) {
+        continue;
+      }
+
+      for (let j = i + 1; j < len; j++) {
+        itemB = copyItems[j];
+        // 跳过空元素
+        if (!itemB[2]) {
+          continue;
+        }
+
+        //  非相同元素 跳过
+        if (itemA[2].name !== itemB[2].name) {
+          continue;
+        }
+
+        if (
+          // 垂直相邻元素
+          (itemA[0] === itemB[0] && Math.abs(itemA[1] - itemB[1]) === 1) ||
+          // 水平相邻元素
+          (itemA[1] === itemB[1] && Math.abs(itemA[0] - itemB[0]) === 1) ||
+          // 其它
+          !!linkDetection([itemA[0], itemA[1]], [itemB[0], itemB[1]], this.level.row, this.level.col, isEmpty)
+        ) {
+          return [
+            [itemA[0], itemA[1]],
+            [itemB[0], itemB[1]],
+            this.linkUpItems
+          ];
+        }
+      }
+    }
+  }
+
+  isSameType (pointA: IPoint, pointB: IPoint): boolean {
+    const [x1, y1] = pointA;
+    const [x2, y2] = pointB;
+    const linkUpItems = this.linkUpItems;
+    const itemA = linkUpItems[y1][x1];
+    const itemB = linkUpItems[y2][x2];
+    if ((itemA[2] && itemB[2]) && (itemA[2].name === itemB[2].name)) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
