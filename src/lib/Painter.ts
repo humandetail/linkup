@@ -4,12 +4,21 @@
  * @Author: humandetail
  * @Date: 2021-03-18 23:46:55
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-26 15:57:47
+ * @LastEditTime: 2021-03-30 15:24:19
  */
 
 import { ILevelItem, ILinkUpItem, IPoint } from '../../types';
 import { getElemDocPosition, getPagePos, getClickCoordinate } from './utils';
 import { singleSize } from '../config/mahjong';
+
+// 方向
+enum Direction {
+  UP = 0,
+  RIGHT,
+  DOWN,
+  LEFT,
+  CENTER
+}
 
 export default class Painter {
   private static Instance: Painter = new Painter();
@@ -42,6 +51,11 @@ export default class Painter {
   protected firstClickPos?: IPoint;
   // 第二次点击的元素
   protected secondClickPos?: IPoint;
+
+  // 路径配置
+  protected lineWidth: number = 2;
+  protected defaultSpeed: number = 16; // requestAnimationFrame 每16ms执行一行
+  protected maxDuration: number = 300; // 期望在 1000ms 执行完线路绘制
 
   private constructor () {}
 
@@ -105,21 +119,25 @@ export default class Painter {
     // 加载底图
     this.material = await this.loadMaterial(require('../assets/img/mahjong.png'))
       .catch(() => {
+        alert('素材加载失败，请刷新页面重试');
         throw new Error('素材-[底图] 加载失败.');
       });
     // 加载选中框
     this.checkbox = await this.loadMaterial(require('../assets/img/checkbox.png'))
       .catch(() => {
+        alert('素材加载失败，请刷新页面重试');
         throw new Error('素材-[选中框] 加载失败.');
       });
     // 加载错误选中框1
     this.errorCheckbox1 = await this.loadMaterial(require('../assets/img/checkbox-error-1.png'))
       .catch(() => {
+        alert('素材加载失败，请刷新页面重试');
         throw new Error('素材-[错误选中框1] 加载失败.');
       });
     // 加载错误选中框2
     this.errorCheckbox2 = await this.loadMaterial(require('../assets/img/checkbox-error-2.png'))
       .catch(() => {
+        alert('素材加载失败，请刷新页面重试');
         throw new Error('素材-[错误选中框2] 加载失败.');
       });
   }
@@ -316,6 +334,213 @@ export default class Painter {
   }
 
   /**
+   * 获取从第一个点移动到第二个点的方向
+   * 两个点必须在同一个方向
+   */
+  getMoveDirection (pointA: IPoint, pointB: IPoint): Direction {
+    const [x1, y1] = pointA;
+    const [x2, y2] = pointB;
+
+    if (x1 === x2) {
+      return y1 > y2 ? Direction.UP : Direction.DOWN;
+    }
+
+    if (y1 === y2) {
+      return x1 > x2 ? Direction.LEFT : Direction.RIGHT;
+    }
+
+    // 未知情况
+    return Direction.CENTER;
+  }
+
+  /**
+   * 计算连接坐标点
+   */
+  calculateConnectPoints (points: IPoint[]): IPoint[] {
+    const [width, height] = this.mahjongPicSize;
+    const len = points.length;
+
+    if (len < 2) return points;
+
+    points = points.map((point) => {
+      return [
+        point[0] * width,
+        point[1] * height
+      ];
+    });
+
+    let point: IPoint;
+    let dir: Direction = Direction.CENTER;
+
+    let temp: IPoint[] = [];
+
+    for (let i = 0; i < len; i++) {
+      point = points[i];
+
+      if (i === 0) {
+        // 第一个点和下一个点进行比对
+        dir = this.getMoveDirection(point, points[i + 1]);
+      } else if (i === len - 1) {
+        // 最后一个点和上一个点进行比对
+        dir = this.getMoveDirection(point, points[i - 1]);
+      } else {
+        dir = Direction.CENTER;
+      }
+
+      switch (dir) {
+        case Direction.UP:
+          // 向上，取center top 点
+          temp.push([
+            point[0] + width / 2,
+            point[1]
+          ]);
+          break;
+        case Direction.RIGHT:
+          // 向右，取right center
+          temp.push([
+            point[0] + width,
+            point[1] + height / 2
+          ]);
+          break;
+        case Direction.DOWN:
+          // 向下，取center bottom
+          temp.push([
+            point[0] + width / 2,
+            point[1] + height
+          ]);
+          break;
+        case Direction.LEFT:
+          // 向左，取left center
+          temp.push([
+            point[0],
+            point[1] + height / 2
+          ]);
+          break;
+        default:
+          // 取center center
+          temp.push([
+            point[0] + width / 2,
+            point[1] + height / 2
+          ]);
+          break;
+      }
+    }
+
+    const tempLen = temp.length;
+
+    let x1: number,
+      y1: number,
+      x2: number,
+      y2: number;
+
+    const scatters: IPoint[] = [];
+
+    for (let i = 1; i < tempLen; i++) {
+      ([x1, y1] = temp[i - 1]);
+      ([x2, y2] = temp[i]);
+
+      if (x1 === x2) {
+        if (y1 > y2) {
+          for (let j = y1; j >= y2; j--) {
+            scatters.push([x1, j]);
+          }
+        } else {
+          for (let j = y1; j <= y2; j++) {
+            scatters.push([x1, j]);
+          }
+        }
+      }
+
+      if (y1 === y2) {
+        if (x1 > x2) {
+          for (let j = x1; j >= x2; j--) {
+            scatters.push([j, y1]);
+          }
+        } else {
+          for (let j = x1; j <= x2; j++) {
+            scatters.push([j, y1]);
+          }
+        }
+      }
+    }
+
+    return scatters;
+  }
+
+  /**
+   * 连接动画
+   * @param points 
+   * @returns 
+   */
+  connect (points: IPoint[]): Promise<void> {
+    const calcPoints = this.calculateConnectPoints(points);
+    return new Promise((resolve, reject) => {
+      const len = calcPoints.length;
+
+      if (len === 2) {
+        // 相同的坐标点
+        if (points[0][0] === points[1][0] && points[0][1] === points[1][1]) {
+          resolve();
+        }
+      }
+
+      const defaultSpeed = this.defaultSpeed;
+      const maxDuration = this.maxDuration;
+
+      let i = Math.floor(len * defaultSpeed / maxDuration);
+      if (i < 1) {
+        i = 1;
+      }
+
+      if (len <= 0) {
+        // 动画完毕后清空点击数据
+        this.clearClickPos();
+        resolve();
+      }
+
+      let temp: IPoint[] = [],
+        t = 0,
+        aniId: number | null = null;
+
+      const ani = () => {
+        if ((t >= len) && aniId) {
+          cancelAnimationFrame(aniId);
+          // 动画完毕后清空点击数据
+          this.clearClickPos();
+          return resolve();
+        }
+        for (let j = i; j > 0; j--) {
+          temp.push(calcPoints[t]);
+          t++;
+          if (t >= len) {
+            break;
+          }
+        }
+        this.drawConnectPoints(temp);
+        aniId = requestAnimationFrame(ani);
+      }
+
+      ani();
+    });
+  }
+
+  drawConnectPoints (points: IPoint[]) {
+    const ctx = this.ctx;
+    const lineWidth = this.lineWidth;
+    this.restoreSnapshot();
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = 'orange';
+      ctx.shadowBlur = 5 + i;
+      points.forEach(([x, y]) => {
+        ctx.fillRect(x - lineWidth / 2, y - lineWidth / 2, lineWidth, lineWidth);
+      });
+      ctx.restore();
+    }
+  }
+
+  /**
    * 连接失败处理
    */
   async handleConnectFail () {
@@ -435,7 +660,12 @@ export default class Painter {
    * 获取canvas画板在页面中的位置
    */
   getCanvasDocPos () {
-    this.canvasDocPos = getElemDocPosition(this.canvas);
+    const rect = this.canvas.getBoundingClientRect();
+    this.canvasDocPos = {
+      left: rect.left,
+      top: rect.top
+    };
+
     return this.canvasDocPos;
   }
 

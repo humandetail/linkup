@@ -4,12 +4,17 @@
  * @Author: humandetail
  * @Date: 2021-03-25 13:49:09
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-26 16:04:32
+ * @LastEditTime: 2021-03-30 15:24:56
  */
 
 import Listener from './lib/Listener';
 import LinkUp from './lib/LinkUp';
 import Painter from './lib/Painter';
+
+import {
+  GameOver,
+  Loading
+} from './lib/animations';
 
 import Levels from './config/level';
 
@@ -30,14 +35,17 @@ export enum GameStatus {
 }
 
 export default async () => {
+  let gameOver: GameOver | null = null;
+  let loading: Loading | null = null;
   const listener = Listener.getInstance();
   const linkUp = LinkUp.getInstance();
   const painter = Painter.getInstance();
 
+  const oAnimationWrapper = document.querySelector('#js-animation-wrapper') as HTMLElement;
   const oLevels = document.querySelector('#js-levels');
   const oProps = document.querySelector('#js-props');
   const oGameWrapper = document.querySelector('#js-game-wrapper') as HTMLCanvasElement;
-  const oPropsTemp = document.querySelector('#js-props-template')!.innerHTML;
+  const propsTemp = document.querySelector('#js-props-template')!.innerHTML;
 
   let level: ILevelItem;
   let prop: IPropAmount = {
@@ -64,7 +72,7 @@ export default async () => {
 
   function setProp (amount: IPropAmount, activeProp: string = '') {
     const reg = /\{\{(.*?)\}\}/g;
-    oProps!.innerHTML = oPropsTemp.replace(reg, (node, key) => {
+    oProps!.innerHTML = propsTemp.replace(reg, (node, key) => {
       return amount[key as keyof IPropAmount] + '';
     });
     document.querySelectorAll('.prop')?.forEach((el) => el.classList.remove('acitve'));
@@ -85,7 +93,12 @@ export default async () => {
       level = target.dataset.level;
 
       if (level && Levels[level] && confirm(`确认选择“${Levels[level].name}”开始游戏吗？`)) {
+        oAnimationWrapper.style.display = 'none';
         listener.emit('change-level', Levels[level]);
+        if (gameOver) {
+          gameOver.clear();
+          gameOver = null;
+        }
       }
     }
   }
@@ -179,11 +192,15 @@ export default async () => {
     // 更新画板
     painter.changeLevel(level);
     // 开启加载动画
-    painter.initLoadingAnimation();
+    // painter.initLoadingAnimation();
+    oAnimationWrapper.style.display = 'block';
+    loading = new Loading(oAnimationWrapper);
 
     // 生成连接元素
     const linkUpItems = linkUp.init(level);
     await sleep(500);
+    loading.clear();
+    oAnimationWrapper.style.display = 'none';
     listener.emit('loaded', linkUpItems);
   });
 
@@ -263,7 +280,8 @@ export default async () => {
         return;
       }
       
-      await painter.drawLineAnimation(...result);
+      // await painter.drawLineAnimation(...result);
+      await painter.connect(result);
     }
     const {
       linkUpItems,
@@ -284,7 +302,10 @@ export default async () => {
     const mm = Math.floor(duration / 60);
     const ss = duration % 60;
 
-    painter.drawGameOverAnimation(`${mm}分${ss}秒`);
+    // painter.drawGameOverAnimation(`${mm}分${ss}秒`);
+    oAnimationWrapper.style.display = 'block';
+    gameOver = new GameOver(oAnimationWrapper, { text: 'YOU WIN' });
+    gameOver.loop();
   });
 }
 

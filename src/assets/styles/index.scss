@@ -200,6 +200,7 @@ body,
 
   .main {
     // float: right;
+    position: relative;
     min-width: 480px;
     min-height: 600px;
     border: 20px solid transparent;
@@ -210,5 +211,20 @@ body,
     border-image-repeat: repeat;
     border-radius: 10px;
     background: url(../img/table-1.jpg);
+
+    .animation-wrapper {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9;
+      // background-color: #000;
+
+      canvas {
+        position: absolute;
+      }
+    }
   }
 }
