@@ -4,7 +4,7 @@
  * @Author: humandetail
  * @Date: 2021-03-25 13:49:09
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-30 15:24:56
+ * @LastEditTime: 2021-03-30 16:28:04
  */
 
 import Listener from './lib/Listener';
@@ -19,7 +19,7 @@ import {
 import Levels from './config/level';
 
 import { ILevelItem, ILinkUpItem, IPoint, IPropAmount } from '../types';
-import { sleep } from './lib/utils';
+import { sleep, throttle } from './lib/utils';
 
 export enum GameStatus {
   // 加载状态
@@ -46,6 +46,8 @@ export default async () => {
   const oProps = document.querySelector('#js-props');
   const oGameWrapper = document.querySelector('#js-game-wrapper') as HTMLCanvasElement;
   const propsTemp = document.querySelector('#js-props-template')!.innerHTML;
+  const OInstructionWrapper = document.querySelector('#js-instruction-wrapper') as HTMLElement;
+  const instructionTemp = document.querySelector('#js-instruction-template')!.innerHTML;
 
   let level: ILevelItem;
   let prop: IPropAmount = {
@@ -58,7 +60,25 @@ export default async () => {
   let startTime: number; // 开始时间 毫秒时间戳
 
   await painter.init(oGameWrapper);
+  showInstruction();
   setProp(prop);
+
+  window.addEventListener('resize', throttle(function () {
+    painter.getCanvasDocPos();
+  }, 16), false);
+
+  function showInstruction () {
+    const reg = /\{\{(.*?)\}\}/g;
+    const propsImg = {
+      tip: require('./assets/img/prop/tip.png'),
+      reset: require('./assets/img/prop/reset.png'),
+      bomb: require('./assets/img/prop/bomb.png')
+    };
+
+    OInstructionWrapper.innerHTML = instructionTemp.replace(reg, (node, key) => {
+      return propsImg[key as keyof typeof propsImg];
+    });
+  }
 
   function addEventListener () {
     if (!oLevels || !oProps || !oGameWrapper) {
@@ -187,6 +207,7 @@ export default async () => {
     prop = initProp(level);
     gameStatus = GameStatus.loading;
     // await painter.init(level, oGameWrapper);
+    OInstructionWrapper.remove();
     // 设置道具数量
     setProp(prop);
     // 更新画板
@@ -235,8 +256,6 @@ export default async () => {
   
   // 游戏加载完成监听
   listener.on('loaded', (linkUpItems: ILinkUpItem[][]) => {
-    // 清除加载动画
-    painter.clearLoadingAnimation();
     // 绘制游戏元素
     painter.updateElement(linkUpItems);
     // 正常开始游戏
@@ -280,7 +299,7 @@ export default async () => {
         return;
       }
       
-      // await painter.drawLineAnimation(...result);
+      // 绘制连接动画
       await painter.connect(result);
     }
     const {
@@ -301,10 +320,11 @@ export default async () => {
     const duration = Math.ceil((new Date().getTime() - startTime) / 1000);
     const mm = Math.floor(duration / 60);
     const ss = duration % 60;
+    console.log(`游戏用时：${mm}分${ss}秒`);
 
-    // painter.drawGameOverAnimation(`${mm}分${ss}秒`);
     oAnimationWrapper.style.display = 'block';
     gameOver = new GameOver(oAnimationWrapper, { text: 'YOU WIN' });
+    // 绘制结束动画
     gameOver.loop();
   });
 }

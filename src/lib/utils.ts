@@ -4,7 +4,7 @@
  * @Author: humandetail
  * @Date: 2021-03-18 20:35:49
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-29 19:09:59
+ * @LastEditTime: 2021-03-30 16:27:29
  */
 
 import { ILevelItem, IMahjongItem, IPoint } from '../../types';
@@ -182,4 +182,28 @@ export function getClickCoordinate (
     Math.floor((x - left) / width),
     Math.floor((y - top) / height)
   ];
+}
+export function throttle (fn: Function, delay: number) {
+  var t: NodeJS.Timeout | null = null,
+    beginTime = new Date().getTime();
+
+  return function () {
+    // @ts-ignore
+    var _self = this,
+        args = arguments,
+        currentTime = new Date().getTime();
+
+    if (t) {
+      clearTimeout(t); // 先清除计时器
+    }
+
+    if (currentTime - beginTime >= delay) { // 当前时间 - 上一次触发时间 >= 设置的间隔时间，则允许触发
+      fn.apply(_self, args);
+      beginTime = currentTime; // 重置开始时间
+    } else { // 未满足条件，则不触发
+      t = setTimeout(function () {
+        fn.apply(_self, args);
+      }, delay);
+    }
+  }
 }

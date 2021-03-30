@@ -4,11 +4,11 @@
  * @Author: humandetail
  * @Date: 2021-03-18 23:46:55
  * @LastEditors: humandetail
- * @LastEditTime: 2021-03-30 15:24:19
+ * @LastEditTime: 2021-03-30 15:56:38
  */
 
 import { ILevelItem, ILinkUpItem, IPoint } from '../../types';
-import { getElemDocPosition, getPagePos, getClickCoordinate } from './utils';
+import { getPagePos, getClickCoordinate } from './utils';
 import { singleSize } from '../config/mahjong';
 
 // 方向
@@ -71,34 +71,6 @@ export default class Painter {
   }
 
   /**
-   * 初始化加载动画
-   */
-  initLoadingAnimation (fillStyle: string = '#fff', font: string = '40px sans-serif') {
-    const ctx = this.ctx;
-    // 先清理之前可能会存在的动画
-    this.clearLoadingAnimation();
-
-    ctx.fillStyle = fillStyle;
-    ctx.font = font;
-
-    let n = 0;
-
-    this.loadingTimer = setInterval(() => {
-      this.clear();
-      ctx.fillText('玩命加载中' + '.'.repeat(n % 4), 10, 50);
-      n ++;
-    }, 200);
-  }
-
-  // 清理 loading 动画
-  clearLoadingAnimation () {
-    if (this.loadingTimer) {
-      clearInterval(this.loadingTimer);
-      this.loadingTimer = undefined;
-    }
-  }
-
-  /**
    * 切换游戏等级
    * @param level 
    */
@@ -110,6 +82,7 @@ export default class Painter {
     this.canvas.height = row * height;
     // 获取画板在页面中的位置
     this.getCanvasDocPos();
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   /**
@@ -244,93 +217,6 @@ export default class Painter {
         }
       }, duration);
     });
-  }
-
-  /**
-   * 绘制连接线
-   * @param pointA - A 点
-   * @param pointB - B 点
-   * @returns 
-   */
-  drawLine (pointA: IPoint, pointB: IPoint): Promise<void> {
-    return new Promise((resolve, reject) => {
-      let [x1, y1] = pointA,
-        [x2, y2] = pointB;
-
-      const [w, h] = this.mahjongPicSize;
-
-      const ctx = this.ctx;
-
-      x1 = x1 * w + w / 2;
-      x2 = x2 * w + w / 2
-      y1 = y1 * h + h / 2;
-      y2 = y2 * h + h / 2;
-
-      let changeAxis = x1 === x2 ? 'Y' : 'X'; // 沿着哪条轴来画
-
-      const direction = (changeAxis === 'Y' ? (y1 - y2) : (x1 - x2)) > 0 ? 'minus' : 'plus';
-      const speed = Math.abs(changeAxis === 'Y' ? (y1 - y2) : (x1 - x2)) / 10;
-
-      let timer: NodeJS.Timeout | null  = null;
-
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'red';
-      ctx.beginPath();
-      
-      timer = setInterval(() => {
-        // 计算坐标值
-        let newX,
-          newY;
-
-        if (changeAxis === 'Y') {
-          newX = x1;
-          newY = direction === 'minus' ? y1 - speed : y1 + speed;
-        } else {
-          newX = direction === 'minus' ? x1 - speed : x1 + speed;
-          newY = y1;
-        }
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(newX, newY);
-        ctx.stroke();
-        x1 = newX;
-        y1 = newY;
-        if ((changeAxis === 'Y' && newY === y2) || (changeAxis === 'X' && newX === x2)) {
-          clearInterval(timer!);
-          resolve();
-        }
-      }, 12);
-      ctx.closePath();
-    });
-  }
-
-  /**
-   * 绘制连接动画
-   */
-  async drawLineAnimation (...points: IPoint[]) {
-    const len = points.length;
-
-    for (let i = 1; i < len; i++) {
-      await this.drawLine(points[i - 1], points[i]);
-    }
-    // 动画完毕后清空点击数据
-    this.clearClickPos();
-  }
-
-  /**
-   * 绘制游戏完成提示
-   * @param { string } duration - 游戏耗时
-   */
-  drawGameOverAnimation (duration: string) {
-    this.clear();
-
-    const ctx = this.ctx;
-
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px sans-serif';
-
-    ctx.fillText('恭喜，全部解开了。', 10, 50);
-    ctx.fillText(`游戏用时：【${duration}】`, 10, 80);
   }
 
   /**

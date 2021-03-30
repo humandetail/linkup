@@ -41,6 +41,9 @@
 
         <div class="animation-wrapper" id="js-animation-wrapper">
         </div>
+
+        <div class="instruction-wrapper" id="js-instruction-wrapper">
+        </div>
       </main>
     </div>
   </div>
@@ -49,6 +52,29 @@
     <li class="prop prop-tip" title="提示" data-prop="tip">提示 <span class="amount">{{tip}}</span></li>
     <li class="prop prop-reset" title="重排" data-prop="reset">重排 <span class="amount">{{reset}}</span></li>
     <li class="prop prop-bomb" title="强行消除" data-prop="bomb">强行消除 <span class="amount">{{bomb}}</span></li>
+  </script>
+
+  <script type="text/plain" id="js-instruction-template">
+    <h2 class="title">游戏说明</h2>
+    <ul class="content">
+      <li class="item">选择【游戏难度】即可开始游戏或放弃当前正在进行的游戏；</li>
+      <li class="item">
+        本游戏提供三种不同的道具：
+        <img src="{{tip}}" />、<img src="{{reset}}" />以及<img src="{{bomb}}" />，不同的难度可使用次数不同；
+        <ul class="sub">
+          <li class="sub-item">
+            <img src="{{tip}}" />：点击后，会提示两可以消除的元素；
+          </li>
+          <li class="sub-item">
+            <img src="{{reset}}" />：点击后，游戏会重新排列剩余的元素；
+          </li>
+          <li class="sub-item">
+            <img src="{{bomb}}" />：点击后，选中两个相同的元素即可消除。
+          </li>
+        </ul>
+      </li>
+      <li class="item">祝游戏愉快！</li>
+    </ul>
   </script>
 </body>
 </html>
